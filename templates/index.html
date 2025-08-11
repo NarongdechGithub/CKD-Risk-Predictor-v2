@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>การพยากรณ์โรคไตเรื้อรัง (CKD Prediction)</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --sky:#a6dcff; --card:#ffffff; --ink:#1d2b36; --muted:#6b7b88; --accent:#2b9de3; --accent-2:#ffd66b;
+      --shadow:0 10px 28px rgba(0,0,0,.08);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0; padding:0; background:linear-gradient(180deg,var(--sky),#d7efff 60%);
+      font-family:"Prompt",system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Thai",sans-serif; color:var(--ink)}
+    .app{max-width:1080px;margin:28px auto;padding:20px;background:#e9f6ff;border-radius:28px;box-shadow:var(--shadow);border:6px solid #7cc8ff}
+    header.browser{background:#6ec3ff;border-radius:20px;padding:14px 20px;color:#fff;display:flex;align-items:center;gap:0;justify-content:flex-start;}
+    /* header.browser{background:#6ec3ff;border-radius:20px;padding:14px 20px;color:#fff;display:flex;align-items:center;gap:40px;margin-bottom:18px} */
+    /* .dot{width:12px;height:12px;border-radius:999px;background:#32cd66;box-shadow:14px 0 0 #ffd83d,28px 0 0 #ff5f56} */
+    .stage{background:var(--card);border-radius:24px;box-shadow:var(--shadow);overflow:hidden;border:1px solid #e4eef6}
+    .hero{padding:18px;background:linear-gradient(180deg,#f7fbff,#ffffff)}
+    .hero h1{margin:8px 0 0;line-height:1.1;font-size:32px;font-weight:800}
+    .hero h2{margin:4px 0 0;font-weight:500;color:#3c5566;font-size:16px}
+    .hero-img{width:100%;border-radius:16px;object-fit:cover;margin-top:14px;border:1px solid #eaf3fb}
+    .section-title{display:inline-block;margin:18px 18px 12px;padding:10px 14px;background:var(--accent-2);border-radius:12px;font-weight:700;color:#3b3b3b}
+    form{padding:0 18px 20px;display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+    .field{grid-column:span 6;display:flex;flex-direction:column;gap:8px}
+    .field.small{grid-column:span 4}
+    .label{font-weight:600;display:flex;align-items:center;gap:8px}
+    .sub{font-size:12px;color:var(--muted)}
+    .control{display:flex;align-items:center;gap:8px;background:#f6fbff;border:1.5px solid #d8e8f5;padding:10px 12px;border-radius:12px;transition:border .2s, box-shadow .2s}
+    .control:focus-within{border-color:#9dd7ff;box-shadow:0 0 0 4px #bfe6ff80}
+    input[type="number"],select{border:0;outline:none;background:transparent;width:100%;font-size:15px;color:var(--ink)}
+    .info{cursor:pointer;user-select:none;border:0;border-radius:999px;width:22px;height:22px;display:inline-grid;place-items:center;font-weight:700;color:#276489;background:#e6f4ff;box-shadow:inset 0 -1px 0 rgba(0,0,0,.06)}
+    .actions{padding:10px 18px 24px;display:flex;justify-content:center;gap:10px}
+    .btn{background:var(--accent);color:white;border:0;padding:14px 22px;font-weight:700;border-radius:999px;cursor:pointer;letter-spacing:.2px;font-size:16px;box-shadow:0 8px 16px rgba(43,157,227,.25)}
+    .btn.gray{background:#9aa8b3}
+    .btn:active{transform:translateY(1px)}
+    .note{text-align:center;color:#6e7d8a;font-size:12px;padding:0 22px 22px}
+    .tooltip{position:relative;display:inline-block}
+    .tip-card{position:absolute;z-index:5;inset:auto auto auto 0;transform:translateY(-6px);min-width:280px;max-width:360px;background:#101826;color:#ecf3ff;padding:14px 16px;border-radius:12px;box-shadow:0 12px 28px rgba(0,0,0,.35);font-size:13px;line-height:1.45;display:none;max-width: 340px;width: max-content;white-space: normal;overflow-wrap: anywhere;z-index: 50;}
+    .tooltip.show .tip-card{display:block;left: auto !important;right: 0;}
+    .tip-title{font-weight:700;margin-bottom:6px}
+    .tip-muted{opacity:.85}
+    .producer-credit {text-align: center; font-size: 12px; /* ปรับจากเดิม 13-14px ให้เล็กลง */ color: #555; margin-top: 4px; font-style: italic; }
+    @media (max-width:900px){.field{grid-column:span 12}.field.small{grid-column:span 6}}
+    @media (max-width:520px){.field.small{grid-column:span 12}.tooltip.center .tip-card{left: 50% !important;right: auto;transform: translate(-50%, -6px);max-width: min(92vw, 360px);}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="browser">
+      <div class="dot" aria-hidden="true"></div>
+      <div style="font-weight:700">CKD Prediction</div>
+    </header>
+
+    <main class="stage">
+      <section class="hero">
+        <h1>การพยากรณ์โรคไตเรื้อรัง</h1>
+        <h2>(Chronic Kidney Disease Prediction)</h2>
+        <img class="hero-img" src="Pic-Kidney Disease.png" alt="Kidney Disease">
+      </section>
+
+      <div class="section-title">ข้อมูลสุขภาพ</div>
+      <form id="ckdForm" novalidate>
+        <!-- age -->
+        <label class="field small">
+          <span class="label">อายุ <span class="sub">(ปี)</span></span>
+          <span class="control"><input type="number" name="age" min="1" max="120" placeholder="เช่น 45" required></span>
+        </label>
+
+        <!-- sex -->
+        <label class="field small">
+          <span class="label">เพศ (Sex)</span>
+          <span class="control">
+            <select name="sex" required>
+              <option value="" hidden>เลือกเพศ</option>
+              <option value="male">ชาย</option>
+              <option value="female">หญิง</option>
+            </select>
+          </span>
+        </label>
+
+        <!-- specific gravity -->
+        <label class="field">
+          <span class="label">ค่าความถ่วงจำเพาะปัสสาวะ (Specific Gravity)
+            <span class="tooltip">
+              <button type="button" class="info">i</button>
+              <div class="tip-card">
+                <div class="tip-title">Specific Gravity คืออะไร?</div>
+                ค่าที่บอกความเข้มข้นของปัสสาวะ ค่าที่พบในชุดข้อมูล: 1.005, 1.010, 1.013–1.016, 1.018, 1.020, 1.025
+                <div class="tip-muted" style="margin-top:6px">เลือกค่าตามผลแลป</div>
+              </div>
+            </span>
+          </span>
+          <span class="control">
+            <select name="specific_gravity" required>
+              <option value="" hidden>เลือกค่า</option>
+              <option>1.005</option><option>1.010</option><option>1.013</option>
+              <option>1.014</option><option>1.015</option><option>1.016</option>
+              <option>1.018</option><option>1.020</option><option>1.025</option>
+            </select>
+          </span>
+        </label>
+
+        <!-- albumin -->
+        <label class="field">
+          <span class="label">อัลบูมินในปัสสาวะ (Albumin)
+            <span class="tooltip" data-tip="alb">
+              <button type="button" class="info">i</button>
+              <div class="tip-card">
+                <div class="tip-title">อัลบูมินระดับ 0–5 คืออะไร?</div>
+                0 = Negative (ไม่พบ)<br>
+                1 = Trace (พบน้อยมาก)<br>
+                2 = + (เล็กน้อย), 3 = ++ (ปานกลาง)<br>
+                4 = +++ (มาก), 5 = ++++ (สูงมาก)<br>
+                <div class="tip-muted" style="margin-top:6px">ตัวอย่าง: ถ้าใบแล็บแสดง “++” ให้เลือก 3</div>
+              </div>
+            </span>
+          </span>
+          <span class="control">
+            <select name="albumin" required>
+              <option value="" hidden>เลือกระดับ 0–5</option>
+              <option>0</option><option>1</option><option>2</option>
+              <option>3</option><option>4</option><option>5</option>
+            </select>
+          </span>
+        </label>
+
+        <!-- blood pressure -->
+        <label class="field small">
+          <span class="label">ความดันโลหิต (mmHg)</span>
+          <span class="control"><input type="number" name="blood_pressure" min="60" max="240" placeholder="เช่น 120" required></span>
+        </label>
+
+        <!-- yes/no selects -->
+
+        <!-- hypertension -->
+        <label class="field small">
+          <span class="label">โรคความดันโลหิตสูง (Hypertension)</span>
+          <span class="control">
+            <select name="hypertension" required>
+              <!-- <option value="" hidden>เลือก</option><option>yes</option><option>no</option> -->
+              <option value="" hidden>เลือก</option>
+              <option value="yes">เป็น</option>
+              <option value="no">ไม่เป็น</option>
+            </select>
+          </span>
+        </label>
+
+        <!-- diabetes -->
+        <label class="field small">
+          <span class="label">โรคเบาหวาน (Diabetes Mellitus)</span>
+          <span class="control">
+            <select name="diabetes_mellitus" required>
+              <!-- <option value="" hidden>เลือก</option><option>yes</option><option>no</option> -->
+              <option value="" hidden>เลือก</option>
+              <option value="yes">เป็น</option>
+              <option value="no">ไม่เป็น</option>
+            </select>
+          </span>
+        </label>
+
+        <!-- CAD -->
+        <label class="field small">
+          <span class="label">โรคหลอดเลือดหัวใจ <br>(Coronary Artery Disease)</span>
+          <span class="control">
+            <select name="coronary_artery_disease" required>
+              <!-- <option value="" hidden>เลือก</option><option>yes</option><option>no</option> -->
+              <option value="" hidden>เลือก</option>
+              <option value="yes">เป็น</option>
+              <option value="no">ไม่เป็น</option>
+            </select>
+          </span>
+        </label>
+
+        <!-- appetite
+        <label class="field small">
+          <span class="label"><br>ความอยากอาหาร (Appetite)</span>
+          <span class="control">
+            <select name="appetite" required>
+              <option value="" hidden>เลือก</option><option>good</option><option>poor</option>
+              <option value="" hidden>เลือก</option>
+              <option value="good">ปกติ</option>
+              <option value="poor">น้อย</option>
+            </select>
+          </span>
+        </label> -->
+
+        <!-- appetite -->
+        <label class="field small">
+          <span class="label"><br>ความอยากอาหาร (Appetite)
+            <span class="tooltip" data-tip="appetite">
+              <br><button type="button" class="info">i</button>
+              <div class="tip-card">
+                <div class="tip-title">ความอยากอาหาร คืออะไร?</div>
+                ใช้ประเมินความรู้สึกอยากรับประทานอาหารในช่วงที่ผ่านมา:
+                <br>• <b>ปกติ (good)</b> — รับประทานได้ตามปกติ ไม่ค่อยมีอาการเบื่ออาหาร
+                <br>• <b>น้อย (poor)</b> — เบื่ออาหาร กินได้น้อยลง น้ำหนักลด หรือคลื่นไส้บ่อย
+                <div class="tip-muted" style="margin-top:6px">
+                  ตัวอย่าง: ช่วง 1–2 สัปดาห์มานี้กินได้น้อยลง ชิมอะไรก็ไม่ค่อยอร่อย → เลือก “น้อย”
+                </div>
+              </div>
+            </span>
+          </span>
+          <span class="control">
+            <select name="appetite" required>
+              <option value="" hidden>เลือก</option>
+              <option value="good">ปกติ</option>
+              <option value="poor">น้อย</option>
+            </select>
+          </span>
+        </label>
+
+        <!-- pedal edema
+        <label class="field small">
+          <span class="label"><br>บวมกดบุ๋ม (Pedal Edema)</span>
+          <span class="control">
+            <select name="pedal_edema" required>
+              <option value="" hidden>เลือก</option><option>yes</option><option>no</option> -->
+              <!-- <option value="" hidden>เลือก</option>
+              <option value="yes">เป็น</option>
+              <option value="no">ไม่เป็น</option>
+            </select>
+          </span>
+        </label> -->
+
+        <!-- pedal edema -->
+        <label class="field small">
+          <span class="label"><br>บวมกดบุ๋ม (Pedal Edema)
+            <span class="tooltip" data-tip="pedal_edema">
+              <br><button type="button" class="info">i</button>
+              <div class="tip-card">
+                <div class="tip-title">บวมกดบุ๋ม คืออะไร?</div>
+                ภาวะที่มีการคั่งของของเหลวในเนื้อเยื่อส่วนปลาย เช่น เท้าหรือข้อเท้า  
+                เมื่อใช้นิ้วกดลงไปจะเกิดรอยบุ๋มที่คงอยู่ชั่วคราวก่อนจะค่อยๆ คืนสภาพ  
+                อาจเกี่ยวข้องกับโรคไต หัวใจ หรือตับ
+                <div class="tip-muted" style="margin-top:6px">
+                  ตัวอย่าง: หากสังเกตเห็นเท้าบวมและกดแล้วเป็นรอยบุ๋ม ให้เลือก "เป็น"
+                </div>
+              </div>
+            </span>
+          </span>
+          <span class="control">
+            <select name="pedal_edema" required>
+              <option value="" hidden>เลือก</option>
+              <option value="yes">เป็น</option>
+              <option value="no">ไม่เป็น</option>
+            </select>
+          </span>
+        </label>
+
+        <!-- anemia -->
+        <label class="field small">
+          <span class="label">โรคโลหิตจาง (Anemia)</span>
+          <span class="control">
+            <select name="anemia" required>
+              <!-- <option value="" hidden>เลือก</option><option>yes</option><option>no</option> -->
+              <option value="" hidden>เลือก</option>
+              <option value="yes">เป็น</option>
+              <option value="no">ไม่เป็น</option>
+            </select>
+          </span>
+        </label>
+
+      </form>
+
+      <div class="actions">
+        <button class="btn" id="predictBtn">ทำนายผลสุขภาพไต</button>
+        <button class="btn gray" id="resetBtn">ล้างค่า</button>
+      </div>
+      <div class="note">หมายเหตุ: ผลการทำนายเป็นการประเมินจาก AI ควรใช้ดุลยพินิจและปรึกษาแพทย์</div>
+    </main>
+  </div>
+
+  <script>
+    // Tooltip toggle
+    document.querySelectorAll('.tooltip .info').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const tp = btn.closest('.tooltip');
+        tp.classList.toggle('show');
+        const close = (ev)=>{
+          if(!tp.contains(ev.target)){ tp.classList.remove('show'); document.removeEventListener('click', close); }
+        };
+        setTimeout(()=>document.addEventListener('click', close), 0);
+      });
+    });
+    const STORAGE_KEY = 'ckdForm';
+    const STORE = sessionStorage;
+
+    const form = document.getElementById('ckdForm');
+    const resetBtn = document.getElementById('resetBtn');
+    const predictBtn = document.getElementById('predictBtn');
+
+    //1. ล้างเมื่อเป็นการรีเฟรชหน้า
+    document.addEventListener('DOMContentLoaded', () => {
+      const nav = performance.getEntriesByType('navigation')[0];
+      if (nav && nav.type === 'reload') {
+        STORE.removeItem(STORAGE_KEY);
+      }
+
+      const saved = STORE.getItem(STORAGE_KEY);
+      if (saved){
+        try{
+          const data = JSON.parse(saved);
+          for(const [k,v] of Object.entries(data)){
+            const el = form.elements[k];
+            if(!el) continue;
+            if(el.tagName === 'SELECT'){ el.value = String(v); }
+            else if(el.type === 'number'){ el.value = v!==null&&v!==undefined ? Number(v) : ''; }
+            else { el.value = v ?? ''; }
+          }
+        }catch{}
+      }
+    });
+
+
+    document.getElementById('resetBtn').addEventListener('click', ()=> form.reset());
+
+    // document.getElementById('predictBtn').addEventListener('click', async ()=>{
+    //   if(!form.reportValidity()) return;
+
+    //   const fd = Object.fromEntries(new FormData(form).entries());
+    //   const mapYN = v => v==='yes' ? 'yes' : 'no';
+
+    //   const payload = {
+    //     age: +fd.age,
+    //     sex: fd.sex,                           // "male"/"female"
+    //     specific_gravity: +fd.specific_gravity,
+    //     albumin: +fd.albumin,
+    //     blood_pressure: +fd.blood_pressure,
+    //     hypertension: mapYN(fd.hypertension),  // "yes"/"no"
+    //     diabetes_mellitus: mapYN(fd.diabetes_mellitus),
+    //     coronary_artery_disease: mapYN(fd.coronary_artery_disease),
+    //     appetite: fd.appetite,                 // "good"/"poor"
+    //     pedal_edema: mapYN(fd.pedal_edema),
+    //     anemia: mapYN(fd.anemia),
+    //   };
+
+    //   try{
+    //     const res = await fetch('/predict', {
+    //       method:'POST',
+    //       headers:{'Content-Type':'application/json'},
+    //       body: JSON.stringify(payload)
+    //     });
+    //     const data = await res.json();
+    //     if(!res.ok || !data.ok){ throw new Error(data.error || 'Predict failed'); }
+
+    //     // redirect ไปหน้าใหม่พร้อมพารามิเตอร์
+    //     const q = new URLSearchParams({
+    //       level: String(data.level),
+    //       message: data.message
+    //     }).toString();
+    //    // window.location.href = `/result?${q}`;
+    //   }catch(err){
+    //     alert('เกิดข้อผิดพลาดในการทำนาย: ' + err.message);
+    //   }
+    // });
+
+    // 1) โหลดค่าที่เคยบันทึกไว้มากรอกคืน
+    // document.addEventListener('DOMContentLoaded', ()=>{
+    //   const saved = localStorage.getItem(STORAGE_KEY);
+    //   if(saved){
+    //     try{
+    //       const data = JSON.parse(saved);
+    //       // ใส่ค่ากลับทีละช่อง (ระวังชนิด number)
+    //       for(const [k,v] of Object.entries(data)){
+    //         const el = form.elements[k];
+    //         if(!el) continue;
+    //         if(el.tagName === 'SELECT'){
+    //           el.value = String(v);
+    //         }else if(el.type === 'number'){
+    //           el.value = v !== null && v !== undefined ? Number(v) : '';
+    //         }else{
+    //           el.value = v ?? '';
+    //         }
+    //       }
+    //     }catch{}
+    //   }
+    // });
+
+    // 2) บันทึกอัตโนมัติทุกครั้งที่มีการแก้ไข (กันพลาด)
+    form.addEventListener('input', ()=>{
+      const snapshot = Object.fromEntries(new FormData(form).entries());
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+    });
+
+    // 3) ล้างค่า = เคลียร์ฟอร์ม + ลบ storage
+    resetBtn.addEventListener('click', ()=>{
+      form.reset();
+      localStorage.removeItem(STORAGE_KEY);
+      // โฟกัสช่องแรกให้ผู้ใช้เริ่มใหม่สะดวก
+      form.elements['age']?.focus();
+    });
+
+    // 4) ตอนส่งทำนาย: เซฟสถานะล่าสุด แล้วค่อยเรียก /predict และ redirect
+    predictBtn.addEventListener('click', async ()=>{
+      if(!form.reportValidity()) return;
+
+      const fd = Object.fromEntries(new FormData(form).entries());
+      STORE.setItem(STORAGE_KEY, JSON.stringify(fd)); // เก็บไว้จนกว่าจะปิดแท็บ
+
+      // // เซฟไว้ก่อนเผื่อผู้ใช้กด Back กลับมา
+      // localStorage.setItem(STORAGE_KEY, JSON.stringify(fd));
+
+      const payload = {
+        age: +fd.age,
+        sex: fd.sex,
+        specific_gravity: +fd.specific_gravity,
+        albumin: +fd.albumin,
+        blood_pressure: +fd.blood_pressure,
+        hypertension: fd.hypertension,
+        diabetes_mellitus: fd.diabetes_mellitus,
+        coronary_artery_disease: fd.coronary_artery_disease,
+        appetite: fd.appetite,
+        pedal_edema: fd.pedal_edema,
+        anemia: fd.anemia,
+      };
+
+      try{
+        const res = await fetch('/predict', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if(!res.ok || !data.ok){ throw new Error(data.error || 'Predict failed'); }
+
+        const q = new URLSearchParams({
+          level: String(data.level),
+          message: data.message
+        }).toString();
+        window.location.href = `/result?${q}`;
+      }catch(err){
+        alert('เกิดข้อผิดพลาดในการทำนาย: ' + err.message);
+      }
+    });
+  </script>
+<!-- <footer class="producer-credit">
+พัฒนาโดย MIDTHaI ร่วมกับมหาวิทยาลัยเทคโนโลยีสุรนารี สนับสนุนโดย PMU-B — Developed by MIDTHaI in collaboration with Suranaree University of Technology, supported by PMU-B | © Narongdech, 2025. All rights reserved.
+</footer> -->
+
+<footer class="producer-credit">
+  พัฒนาโดย MIDTHaI ร่วมกับมหาวิทยาลัยเทคโนโลยีสุรนารี สนับสนุนโดย PMU-B<br>
+  <small>Developed by MIDTHaI in collaboration with Suranaree University of Technology, supported by PMU-B<br>
+  © Narongdech, 2025. All rights reserved.</small>
+</footer>
+
+</body>
+</html>
+
+
+
