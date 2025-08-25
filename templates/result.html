@@ -60,6 +60,32 @@
       bottom: -12px;
       border-bottom: none;
       border-top: 12px solid var(--edge);
+    
+    /* ==== CKD stage badge ==== */
+    .stage-badge{
+      display:inline-flex; align-items:center; gap:10px;
+      padding:10px 14px; border-radius:12px; font-weight:800;
+      background:#e7f0ff; color:#173a6a; margin:8px 18px 12px;
+      box-shadow:0 2px 8px rgba(0,0,0,.04); border:1px solid #d5e6ff;
+    }
+    .stage-badge .k{opacity:.8; font-weight:700}
+    .stage-badge .v{font-weight:900}
+    .stage-badge.warn{background:#fff4d6; color:#7a4b00; border-color:#ffe4a3}
+    .stage-badge.crit{background:#ffe0e0; color:#8a1b1b; border-color:#ffc5c5}
+
+    /* กล่องคำแนะนำ */
+    .advice-card{
+      margin: 12px 18px 22px;
+      padding: 18px;
+      background: #fff;
+      border: 2px solid #dfeaf5;
+      border-radius: 16px;
+      box-shadow: 0 10px 20px rgba(0,0,0,.06);
+    }
+    .advice-card h3{ margin:0 0 10px; }
+    .advice-card h4{ margin:12px 0 6px; font-size:1rem; }
+    .advice-card ul{ margin:6px 0 12px 20px; padding:0; }
+    .advice-card li{ margin:4px 0; }
 
     }
     .result-card{
@@ -70,6 +96,38 @@
       border-radius: 16px;
       box-shadow: 0 10px 20px rgba(0,0,0,.06);
     }
+
+    html{ font-size: clamp(18px, 1.7vw, 20px); }
+    body{ line-height: 1.6; }
+    .hero h1{ font-size: clamp(26px, 2.6vw, 32px); }
+    .hero h2{ font-size: clamp(16px, 2vw, 18px); }
+    .badge,.pill{ font-size:1rem; }
+    .btn{ padding:16px 24px; font-size:1rem; }
+    .producer-credit{ font-size:12.5px; }
+
+    .advice-card h4 {
+      margin: 14px 0 8px;
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 8px 12px;
+      border-radius: 8px;
+      color: #1d2b36;            /* สีตัวอักษร */
+      background: #e0f2ff;       /* พื้นหลังอ่อนโทนฟ้า */
+      border: 1px solid #b6e0fe; /* ขอบ */
+      display: inline-block;     /* ให้กลายเป็นบล็อกพอดีข้อความ */
+    }
+
+    .advice-card h4.diet     { background:#d9fbe5; border-color:#9be2b1; }
+    .advice-card h4.activity { background:#e0f2ff; border-color:#b6e0fe; }
+    .advice-card h4.stress   { background:#f3e9ff; border-color:#d4baf7; }
+    .advice-card h4.fluids   { background:#fff3d9; border-color:#ffd999; }
+    .advice-card h4.caution  { background:#ffe0e0; border-color:#ffb3b3; }
+
+    .section-title.advice-title {
+      margin-left: 0;
+      margin-right: 0;
+    }
+
   </style>
 </head>
 <body>
@@ -98,6 +156,15 @@
         <div id="badge" class="badge">ผลระดับความเสี่ยง</div>
         <div id="pill" class="pill">—</div>
         <p id="advice" style="color:#445565;margin:8px 0 0"></p>
+
+        <!-- ป้ายแสดงระยะ CKD (จะเติมข้อความด้วย JS) -->
+        <div id="stageBadge" class="stage-badge" style="display:none">
+          <span class="k">ระยะโรคไต (CKD Stage): </span>
+          <span class="v" id="stageText">—</span>
+        </div>
+
+        <div id="lifestyleAdviceContainer" class="content" style="padding-top:0"></div>
+
       </div>
 
       <div class="actions">
@@ -133,6 +200,143 @@
     pill.textContent = meta.title;
     pill.className = "pill " + meta.pill;
     advice.textContent = message;
+    
+    // อ่าน stage ที่ backend ส่งมาผ่าน query
+    const stageParam = params.get('stage'); // คาดว่าเป็น "1"|"2"|"3a"|"3b"|"4"|"5"
+    
+    (function renderStageBadge(){
+      if(!stageParam) return;
+      const names = {
+        "1": "ระยะที่ 1 (eGFR ≥90)",
+        "2": "ระยะที่ 2 (eGFR 60–89)",
+        "3a": "ระยะที่ 3a (eGFR 45–59)",
+        "3b": "ระยะที่ 3b (eGFR 30–44)",
+        "4": "ระยะที่ 4 (eGFR 15–29)",
+        "5": "ระยะที่ 5 (eGFR <15)"
+      };
+
+      const badge = document.getElementById('stageBadge');
+      const text  = document.getElementById('stageText');
+      if(badge && text && names[stageParam]){
+        text.textContent = names[stageParam];
+        badge.style.display = 'inline-flex';
+        if (stageParam === '4' || stageParam === '5') badge.classList.add('crit');
+        else if (stageParam === '3a' || stageParam === '3b') badge.classList.add('warn');
+      }
+    })();
+
+    // if (stageParam && stageNames[stageParam]) {
+    //   const badge = document.getElementById('stageBadge');
+    //   const text = document.getElementById('stageText');
+    //   text.textContent = stageNames[stageParam];
+    //   badge.style.display = 'inline-flex';
+    //   // สีประกอบ (ตัวเลือก)
+    //   if (stageParam === '4' || stageParam === '5') badge.classList.add('crit');
+    //   else if (stageParam === '3a' || stageParam === '3b') badge.classList.add('warn');
+    // }
+
+    // ====== คำแนะนำเวชศาสตร์วิถีชีวิตตามระยะ ======
+    const CKD_LIFESTYLE_ADVICE = {
+      "1": {
+        title: "ระยะที่ 1: ป้องกันและคงสภาพไต",
+        diet: [
+          "เน้นพืช ผัก ผลไม้สด ธัญพืชไม่ขัดสี ลดโซเดียม ≤2,000 มก./วัน",
+          "ลดอาหารแปรรูป/น้ำตาล/ไขมันอิ่มตัว; โปรตีนราว 0.8–1.0 กรัม/กก./วัน"
+        ],
+        activity: ["อย่างน้อย 150 นาที/สัปดาห์ + ฝึกแรงต้าน 2–3 วัน/สัปดาห์"],
+        stress: ["เจริญสติ/หายใจลึก/โยคะ 10–20 นาที/วัน"],
+        fluids: ["ดื่มพอเหมาะตามสภาพร่างกายและโรคร่วม"],
+        caution: ["ตรวจติดตามความดัน/น้ำตาล; เลี่ยงสมุนไพร/อาหารเสริมที่ไม่ผ่านมาตรฐาน"]
+      },
+      "2": {
+        title: "ระยะที่ 2: ลดเสี่ยงอย่างจริงจัง",
+        diet: [
+          "เหมือนระยะ 1 แต่เข้มงวดเรื่องลดเค็มและเลือกอาหารสด",
+          "โปรตีนประมาณ 0.8 กรัม/กก./วัน (แพทย์อาจปรับ)"
+        ],
+        activity: ["150 นาที/สัปดาห์ + ฝึกแรงต้าน 2–3 วัน"],
+        stress: ["ฝึกสติ/โยคะ/หายใจลึกสม่ำเสมอ"],
+        fluids: ["พอเหมาะ หากไม่มีภาวะคั่งน้ำ"],
+        caution: ["ติดตามค่าความดัน/น้ำตาล/ไขมัน; เลี่ยงยาลูกกลอน/สมุนไพรเสี่ยงไต"]
+      },
+      "3a": {
+        title: "ระยะที่ 3a: เริ่มคุมโปรตีน–แร่ธาตุ",
+        diet: [
+          "ลดโปรตีน ~0.8 กรัม/กก./วัน; โซเดียม ≤2,000 มก./วัน",
+          "เริ่มระวังโพแทสเซียม/ฟอสฟอรัส: ลดกล้วย น้ำส้ม ผักเข้มสี, นม/ถั่ว/ธัญพืชเต็มเมล็ด; ใช้เทคนิคลวก/ต้มทิ้งน้ำ"
+        ],
+        activity: ["แอโรบิกเบาถึงปานกลาง + ฝึกกล้ามเนื้อ 2–3 วัน/สัปดาห์"],
+        stress: ["สติ/โยคะ/หายใจลึกทุกวัน"],
+        fluids: ["ดื่มพอเหมาะ; ถ้ามีบวมหรือความดันสูง ปรึกษาแพทย์"],
+        caution: ["นัดโภชนบำบัดเพื่อจัดเมนูเฉพาะบุคคล; ติดตาม eGFR, K, P"]
+      },
+      "3b": {
+        title: "ระยะที่ 3b: คุมเข้มโปรตีน–โพแทสเซียม–ฟอสฟอรัส",
+        diet: [
+          "โปรตีน 0.6–0.8 กรัม/กก./วัน; โซเดียม ≤2,000 มก./วัน",
+          "จำกัด K/P เข้มขึ้น: เลี่ยงกล้วย/น้ำส้ม/ผักเข้มสี, นม/นมถั่วเหลืองบางชนิด, ถั่ว, ธัญพืชเต็มเมล็ด; ใช้วิธีลวกทิ้งน้ำ"
+        ],
+        activity: ["กิจกรรมเบาถึงปานกลางสม่ำเสมอ; ฝึกแรงต้านเบา"],
+        stress: ["สติ/โยคะ/หายใจลึก 10–20 นาที/วัน"],
+        fluids: ["พิจารณาจำกัดตามอาการบวม/หัวใจ/ความดัน → ทำตามแพทย์"],
+        caution: ["โภชนบำบัดอย่างใกล้ชิด; ติดตาม eGFR, K, P สม่ำเสมอ"]
+      },
+      "4": {
+        title: "ระยะที่ 4: โภชนบำบัดเข้มงวดภายใต้ทีมแพทย์",
+        diet: [
+          "โปรตีนราว 0.6 กรัม/กก./วัน เน้นโปรตีนคุณภาพดี",
+          "จำกัดฟอสฟอรัส/โพแทสเซียมอย่างใกล้ชิด; ลดนม/ถั่ว/ธัญพืชเต็มเมล็ด/ผัก–ผลไม้ K สูง",
+          "โซเดียมต่ำจริงจัง"
+        ],
+        activity: ["กิจกรรมเบาถึงปานกลาง ปรับตามอาการ/คำแนะนำแพทย์"],
+        stress: ["สติ/โยคะ/หายใจลึกทุกวัน; จัดการการนอน"],
+        fluids: ["มักต้องจำกัดของเหลว (น้ำ/น้ำซุป/น้ำผลไม้/เจล/ไอศกรีม) ตามแพทย์"],
+        caution: ["เฝ้าระวังบวม น้ำหนักขึ้นเร็ว หอบ; ปรึกษาเรื่องยาจับฟอสเฟต/วิตามินตามแพทย์"]
+      },
+      "5": {
+        title: "ระยะที่ 5: เคร่งครัดสูงสุด/เตรียมการบำบัดทดแทนไต",
+        diet: [
+          "ปรับโปรตีน/ฟอสฟอรัส/โพแทสเซียม/โซเดียมตามชนิดการรักษา (ยังไม่ฟอก, HD, PD) โดยทีมแพทย์",
+          "หลีกเลี่ยงสมุนไพร/อาหารเสริมที่ไม่รับรอง เสี่ยงพิษต่อไต"
+        ],
+        activity: ["กิจกรรมเบาช่วงสั้น; ผู้ฟอกเลือดทำ intradialytic exercise ได้ภายใต้การดูแล"],
+        stress: ["ฝึกสติ/โยคะ/หายใจลึกทุกวัน เพื่อคุณภาพชีวิต"],
+        fluids: ["จำกัดของเหลวอย่างเคร่งครัดตามแพทย์/ทีมไต"],
+        caution: ["อาการคั่งน้ำ/หอบ/บวม/น้ำหนักขึ้นเร็วให้รีบพบแพทย์; ทำตามแผนทีมไต"]
+      }
+    };
+
+    function renderAdvice(stageKey){
+      const d = CKD_LIFESTYLE_ADVICE[stageKey];
+      if (!d) return "";
+      const list = (arr)=> `<ul>${arr.map(x=>`<li>${x}</li>`).join("")}</ul>`;
+      return `
+        <div class="section-title advice-title">คำแนะนำเวชศาสตร์วิถีชีวิต</div>
+        <div class="advice-card">
+          <h3>${d.title}</h3>
+          <h4 class="diet">อาหาร</h4>${list(d.diet)}
+          <h4 class="activity">กิจกรรมทางกาย</h4>${list(d.activity)}
+          <h4 class="stress">การจัดการความเครียด</h4>${list(d.stress)}
+          <h4 class="fluids">การดื่มน้ำ/ของเหลว</h4>${list(d.fluids)}
+          <h4 class="caution">ข้อควรระวัง</h4>${list(d.caution)}
+          <p style="color:#6b7b88;font-size:.95em;margin-top:12px">
+            *คำแนะนำทั่วไป ใช้ร่วมกับคำแนะนำของแพทย์ ไม่นำไปใช้แทนการรักษา
+          </p>
+        </div>
+      `;
+    }
+
+    (function mountAdvice(){
+      const box = document.getElementById('lifestyleAdviceContainer');
+      if (!box) return;
+      // ถ้า backend ส่ง "3" มาเป็นกลาง ให้เลือก 3a/3b จาก level: <0.5 เป็น 3a, ≥0.5 เป็น 3b
+      // แต่ในระบบของคุณ เรา “คำนวณ stage จากสกอร์ใน backend แล้ว” ดังนั้นคาดหวัง stage เป็น 1|2|3a|3b|4|5
+      const valid = ["1","2","3a","3b","4","5"];
+      const key = valid.includes(stageParam) ? stageParam : null;
+      if (key){
+        box.innerHTML = renderAdvice(key);
+      }
+    })();
   </script>
 
 <footer class="producer-credit">
